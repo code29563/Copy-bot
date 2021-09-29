@@ -1,0 +1,3 @@
+python-dotenv==0.18.0
+pyrogram==1.2.9
+TgCrypto==1.2.2
