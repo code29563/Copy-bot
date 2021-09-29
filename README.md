@@ -1,6 +1,14 @@
 # Copy-bot
 A userbot for automatically copying new messages from channels to which you're subscribed to other channels in which you're an admin that can send messages.
 
+- [Features](#Features)
+- [Getting started](#Getting-started)
+- [Background](#Background)
+- [How it works](#How-it-works)
+- [Handling floodwaits](#Handling-floodwaits)
+- [The caption added to messages](#The-caption-added-to-messages)
+- [Other notes](#Other-notes)
+
 # Features
 
 - Messages are copied to the destination channel without the 'Forwarded from:' tag
