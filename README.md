@@ -48,7 +48,7 @@ The environment variables are to be given in a .env file. An example is shown in
 	```
 	STREAMS = "-1000000000000,-1000000000001;-1000000000001,-1000000000002"
 	```
-	then messages sent to -1000000000000 get copied to -1000000000001, but those messages don't then get copied form -1000000000001 to -1000000000002. If you also want to have those messages copied to -1000000000002, they can be copied directly from -1000000000000:
+	then messages sent to -1000000000000 get copied to -1000000000001, but those messages don't then get copied from -1000000000001 to -1000000000002. If you also want to have those messages copied to -1000000000002, they can be copied directly from -1000000000000:
 	```
 	STREAMS = "-1000000000000,[-1000000000001,-1000000000002];-1000000000001,-1000000000002"
 	```
