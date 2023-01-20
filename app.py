@@ -9,6 +9,7 @@ from telethon.tl.types import MessageMediaWebPage,MessageService,KeyboardButtonU
 from telethon.tl.custom.button import Button
 from telethon.tl import functions
 import asyncio
+from character_limits import split_message
 
 logging.basicConfig(format='[%(asctime)s --- %(filename)s line %(lineno)d --- %(levelname)s] --- %(message)s', level=logging.INFO) #for detailed logging
 
@@ -73,14 +74,18 @@ msgblist = {} #a blacklist of messages not to be copied; this is for messages se
 for id in sourceids:
     msgblist[id] = []
 
-async def process_message(msg,source,too_long=False,string=None):
-    """copy the message to the destinatoin chats"""
+async def process_message(msg,source,lmsgs):
+    """copy the message to the destination chats"""
     for dest in idsdict[source]:
         step = 1 #the step is to keep track of which step of processing the message we are on, so we don't repeat that step when retrying after a floodwait, and instead move straight to the step on which we encountered the floodwait
+        substep = 1
         while True: #infinite looping; this is to try the commands again for this message if the below-specified exception is raised
             try:
                 if step == 1:
-                    a = await client.send_message(dest,msg)
+                    try:
+                        a = await client.send_message(dest,msg)
+                    except errors.rpcerrorlist.PremiumAccountRequiredError: #in which case it seems it's a sticker that only premium users can send, but bots can also send it as a normal sticker so:
+                        a = await bot.send_message(dest,msg)
                     if dest in sourceids: #if the destination chat is also a source chat ...
                         msgblist[dest].append([dest,a.id,None]) #... add the message to the blacklist so it doesn't get copied
                     #logging.info(f'message {msg.id} from chat {msg.chat_id} copied')
@@ -92,10 +97,11 @@ async def process_message(msg,source,too_long=False,string=None):
                         msgblist[dest].append([dest,b.id,b.edit_date])
                     #logging.info(f'message {msg.id} from chat {msg.chat_id} edited')
                     step = 3
-                if too_long: #stpe 3 only applicable if the character limit of msg.message is exceeded, to send the caption separately; no need to check for 'step == 3' as this is last anyway
-                    c = await bot.send_message(dest,string[2:],reply_to=a) #remove the line breaks at the beginning of the above string, as it's not being added to previously existing text so nothing to separate it from
+                for text in lmsgs[substep-1:]:
+                    a = await bot.send_message(dest,text[0],reply_to=a,formatting_entities=text[1]) #remove the line breaks at the beginning of the above string, as it's not being added to previously existing text so nothing to separate it from
                     if dest in sourceids:
-                        msgblist[dest].append([dest,c.id,None])
+                        msgblist[dest].append([dest,a.id,None])
+                    substep += 1
                     #logging.info(f'message {msg.id} from chat {msg.chat_id} captioned')
             except errors.FloodWaitError as e:
                 logging.info('FloodWait error encountered, retrying after {} seconds'.format(e.seconds))
@@ -149,6 +155,7 @@ async def copy_message(message,source): #defining a function which is used repea
             print(message)
             logging.info('and here is message.forward:')
             print(vars(message.forward))    
+    '''
     if message.media:
         if type(message.media) == MessageMediaWebPage: #a media type, but not subject to the 1024 character restriction
             if len(message.message + string) <= 4096: #to ensure it doesn't go above the limit for text messages, which I think is 4096 characters
@@ -171,6 +178,39 @@ async def copy_message(message,source): #defining a function which is used repea
             await process_message(message,source) 
         else:
             await process_message(message,source,True,string)
+    '''
+    
+    #first, determine the max no. characters of the text part of the message, depending on message type. Premium users may have higher character limits than free-tier users, so the limits below assume a free-tier and allow copying a message with Premium character length
+    media_limit = 1024
+    text_limit = 4096
+    if message.media:
+        if type(message.media) == MessageMediaWebPage: #a media type, but with a text limit equal to that of regular text messages
+            n = text_limit
+        else: #for all other media types, their caption limit:
+            n = media_limit
+    else: #just a regular text message
+        n = text_limit
+    #print(message)
+    if message.message: #a text message, or media message that already has a caption
+        if len(message.message) > n: #if the length of the text part of the messages exceeds the limit for free users ...
+            logging.info('splitting message {0} of chat {1}'.format(message.id,message.chat_id))
+            #t1 = time.time()
+            lmsgs = split_message(message.message,message.entities,n,text_limit) #split the text part of the message into parts less than n characters in length, avoiding splitting apart words or formatting entities where possible; the result is a list of strings with the formatting entities applicable to them
+            #t2 = time.time()
+            #print('time elapsed:',t2-t1)
+        else: #just for consistency in the code, setting this
+            lmsgs = [[message.message,message.entities]]
+        if len(lmsgs[-1][0] + string) <= n: #add the above string to the last element of lstrings if within the limit
+            lmsgs[-1][0] += string
+        else: #send the above string separately
+            lmsgs.append([string[2:],None])
+    else: #a media message with no caption
+        lmsgs = [[string[2:],message.entities]]
+    message.message,message.entities = lmsgs[0][0],lmsgs[0][1] #make the first element of lmsgs part of the message object, the rest to be sent separately; this may be the only (and hence also last) element of lmsgs if everything was within the limit
+    await process_message(message,source,lmsgs[1:]) #copy the message (not forward) to the destination chat
+    #for text in lmsgs[1:]: #copy the rest of the strings as text messages in reply to the previous one, formatted with their entities; loop has zero iterations if lmsgs had only one element
+    #    a = await process_message('send',to,text[0],reply_to=a,formatting_entities=text[1])
+
 
 @client.on(events.NewMessage(chats=sourceids))
 @client.on(events.MessageEdited(chats=sourceids))
