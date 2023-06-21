@@ -7,9 +7,10 @@ The types of source chats the userbot is catered to so far are channels and grou
 - [Getting started](#Getting-started)
 - [Background](#Background)
 - [How it works](#How-it-works)
+- [Messages with buttons](#Messages-with-buttons)
 - [Handling floodwaits](#Handling-floodwaits)
 - [The caption added to messages](#The-caption-added-to-messages)
-- [Other notes](#Other-notes)
+- [Messages from Premium subscribers](#Messages-from-Premium-subscribers)
 
 # Features
 
