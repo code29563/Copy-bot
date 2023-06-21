@@ -200,7 +200,11 @@ async def copy_message(message,source): #defining a function which is used repea
             #print('time elapsed:',t2-t1)
         else: #just for consistency in the code, setting this
             lmsgs = [[message.message,message.entities]]
-        if len(lmsgs[-1][0] + string) <= text_limit: #add the above string to the last element of lstrings if within the limit
+        if len(lmsgs) == 1:
+            nn = n
+        else:
+            nn = text_limit
+        if len(lmsgs[-1][0] + string) <= nn: #add the above string to the last element of lstrings if within the limit
             lmsgs[-1][0] += string
         else: #send the above string separately
             lmsgs.append([string[2:],None])
